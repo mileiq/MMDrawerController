@@ -1060,6 +1060,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
             }
             else {
                 self.startingPanRect = self.centerContainerView.frame;
+                [self.childControllerContainerView endEditing: YES];
             }
         }
         case UIGestureRecognizerStateChanged:{
