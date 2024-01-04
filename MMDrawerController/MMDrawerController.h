@@ -94,6 +94,7 @@ typedef NS_ENUM(NSInteger, MMDrawerOpenCenterInteractionMode) {
 
 @class  MMDrawerController;
 typedef void (^MMDrawerControllerDrawerVisualStateBlock)(MMDrawerController * drawerController, MMDrawerSide drawerSide, CGFloat percentVisible);
+typedef void (^MMDrawerOpenedStateChangedBlock)(BOOL isOpened);
 
 @interface MMDrawerController : UIViewController
 
@@ -434,7 +435,10 @@ typedef void (^MMDrawerControllerDrawerVisualStateBlock)(MMDrawerController * dr
  This block is called when a gesture action has been completed. You can query the `openSide` of the `drawerController` to determine what the new state of the drawer is.
  
  @param gestureCompletionBlock A block object to be called that allows the implementer be notified when a gesture action has been completed.
+ 
  */
+-(void)setOpenedStateChangedBlock:(void(^)(BOOL isOpened))openedStateChangedBlock;
+
 -(void)setGestureCompletionBlock:(void(^)(MMDrawerController * drawerController, UIGestureRecognizer * gesture))gestureCompletionBlock;
 
 ///---------------------------------------
