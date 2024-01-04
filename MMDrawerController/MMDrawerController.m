@@ -134,6 +134,8 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 
 @property (nonatomic, assign) CGRect startingPanRect;
 @property (nonatomic, copy) MMDrawerControllerDrawerVisualStateBlock drawerVisualState;
+@property (nonatomic, copy) MMDrawerOpenedStateChangedBlock openedStateChanged;
+@property (nonatomic, assign, readwrite) BOOL lastOpenedState;
 @property (nonatomic, copy) MMDrawerGestureShouldRecognizeTouchBlock gestureShouldRecognizeTouch;
 @property (nonatomic, copy) MMDrawerGestureCompletionBlock gestureCompletion;
 @property (nonatomic, assign, getter = isAnimatingDrawer) BOOL animatingDrawer;
@@ -203,6 +205,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     
     // set defualt panVelocityXAnimationThreshold
     [self setPanVelocityXAnimationThreshold:MMDrawerPanVelocityXAnimationThreshold];
+    [self setLastOpenedState: FALSE];
 }
 
 #pragma mark - State Restoration
@@ -265,7 +268,13 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 }
 
 -(void)closeDrawerAnimated:(BOOL)animated completion:(void (^)(BOOL finished))completion{
-    [self closeDrawerAnimated:animated velocity:self.animationVelocity animationOptions:UIViewAnimationOptionCurveEaseInOut completion:completion];
+    [self closeDrawerAnimated:animated velocity:self.animationVelocity animationOptions:UIViewAnimationOptionCurveEaseInOut completion:^(BOOL finished) {
+        if (self.lastOpenedState) {
+            self.openedStateChanged(FALSE);
+            self.lastOpenedState = FALSE;
+        }
+        completion(finished);
+    }];
 }
 
 -(void)closeDrawerAnimated:(BOOL)animated velocity:(CGFloat)velocity animationOptions:(UIViewAnimationOptions)options completion:(void (^)(BOOL finished))completion{
@@ -328,7 +337,13 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 -(void)openDrawerSide:(MMDrawerSide)drawerSide animated:(BOOL)animated completion:(void (^)(BOOL finished))completion{
     NSParameterAssert(drawerSide != MMDrawerSideNone);
     
-    [self openDrawerSide:drawerSide animated:animated velocity:self.animationVelocity animationOptions:UIViewAnimationOptionCurveEaseInOut completion:completion];
+    [self openDrawerSide:drawerSide animated:animated velocity:self.animationVelocity animationOptions:UIViewAnimationOptionCurveEaseInOut completion:^(BOOL finished) {
+        if (!self.lastOpenedState) {
+            self.openedStateChanged(TRUE);
+            self.lastOpenedState = TRUE;
+        }
+        completion(finished);
+    }];
 }
 
 -(void)openDrawerSide:(MMDrawerSide)drawerSide animated:(BOOL)animated velocity:(CGFloat)velocity animationOptions:(UIViewAnimationOptions)options completion:(void (^)(BOOL finished))completion{
@@ -678,6 +693,10 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
 #pragma mark - Setting Drawer Visual State
 -(void)setDrawerVisualStateBlock:(void (^)(MMDrawerController *, MMDrawerSide, CGFloat))drawerVisualStateBlock{
     [self setDrawerVisualState:drawerVisualStateBlock];
+}
+
+-(void)setOpenedStateChangedBlock:(void(^)(BOOL isOpened))openedStateChangedBlock {
+    [self setOpenedStateChanged: openedStateChangedBlock];
 }
 
 #pragma mark - Setting Custom Gesture Handler Block
@@ -1060,6 +1079,7 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
             }
             else {
                 self.startingPanRect = self.centerContainerView.frame;
+                [self.childControllerContainerView endEditing: YES];
             }
         }
         case UIGestureRecognizerStateChanged:{
@@ -1155,10 +1175,22 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     if(self.openSide == MMDrawerSideLeft) {
         CGFloat midPoint = self.maximumLeftDrawerWidth / 2.0;
         if(xVelocity > self.panVelocityXAnimationThreshold){
-            [self openDrawerSide:MMDrawerSideLeft animated:YES velocity:animationVelocity animationOptions:UIViewAnimationOptionCurveEaseOut completion:completion];
+            [self openDrawerSide: MMDrawerSideLeft animated: YES velocity: animationVelocity animationOptions: UIViewAnimationOptionCurveEaseOut completion:^(BOOL finished) {
+                if (!self.lastOpenedState) {
+                    self.openedStateChanged(TRUE);
+                    self.lastOpenedState = TRUE;
+                }
+                completion(finished);
+            }];
         }
         else if(xVelocity < -self.panVelocityXAnimationThreshold){
-            [self closeDrawerAnimated:YES velocity:animationVelocity animationOptions:UIViewAnimationOptionCurveEaseOut completion:completion];
+            [self closeDrawerAnimated: YES velocity: animationVelocity animationOptions: UIViewAnimationOptionCurveEaseOut completion:^(BOOL finished) {
+                if (self.lastOpenedState) {
+                    self.openedStateChanged(FALSE);
+                    self.lastOpenedState = FALSE;
+                }
+                completion(finished);
+            }];
         }
         else if(currentOriginX < midPoint){
             [self closeDrawerAnimated:YES completion:completion];
@@ -1185,6 +1217,10 @@ static NSString *MMDrawerOpenSideKey = @"MMDrawerOpenSide";
     }
     else {
         if(completion){
+            if (self.lastOpenedState) {
+                self.openedStateChanged(FALSE);
+                self.lastOpenedState = FALSE;
+            }
             completion(NO);
         }
     }
